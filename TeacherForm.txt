@@ -1,0 +1,273 @@
+  public partial class TeacherForm : Form
+  {
+      private const string ConnString =
+          "Server=localhost" +
+          "Database=UniversityBD;" +
+          "User ID=sa;" +
+          "Password=#puswold123sdJwnwlke23@!3d3zz;" +
+          "Encrypt=True;" +
+          "TrustServerCertificate=True;";
+
+      private int TeacherId = 2; // Здесь можно использовать Session.UserId, если реализована авторизация
+
+      public TeacherForm()
+      {
+          InitializeComponent();
+
+          cmbDisciplines.SelectedIndexChanged += CmbDisciplines_SelectedIndexChanged;
+          dgvStudents.SelectionChanged += DgvStudents_SelectionChanged;
+          btnLoadStudents.Click += BtnLoadStudents_Click;
+          btnSaveGrade.Click += BtnSaveGrade_Click;
+          btnViewGrades.Click += BtnViewGrades_Click;
+
+
+          TeacherForm_Load(this, EventArgs.Empty);
+      }
+      private void BtnViewGrades_Click(object sender, EventArgs e)
+      {
+          if (dgvStudents.CurrentRow == null)
+          {
+              MessageBox.Show("Сначала выберите студента");
+              return;
+          }
+
+          int sid = (int)dgvStudents.CurrentRow.Cells["student_id"].Value;
+
+          const string sql = @"
+      SELECT d.name        AS [Дисциплина],
+             g.GradeValue  AS [Оценка]
+      FROM Grade      g
+      JOIN Discipline d ON d.discipline_id = g.discipline_id
+      WHERE g.student_id = @sid
+      ORDER BY d.name";
+
+          DataTable dt = ExecToTable(sql, p => p.AddWithValue("@sid", sid));
+
+          if (dt.Rows.Count == 0)
+          {
+              MessageBox.Show("У студента нет оценок");
+              return;
+          }
+
+          using (var f = new Form())
+          {
+              f.Text = "Все оценки студента";
+              f.StartPosition = FormStartPosition.CenterParent;
+              f.ClientSize = new System.Drawing.Size(450, 300);
+
+              var grid = new DataGridView
+              {
+                  Dock = DockStyle.Fill,
+                  DataSource = dt,
+                  ReadOnly = true,
+                  AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+              };
+              f.Controls.Add(grid);
+              f.ShowDialog(this);
+          }
+      }
+
+      private DataTable ExecToTable(string sql, Action<SqlParameterCollection> addParams)
+      {
+          var table = new DataTable();
+          try
+          {
+              using (var conn = new SqlConnection(ConnString))
+              using (var cmd = new SqlCommand(sql, conn))
+              {
+                  if (addParams != null)
+                      addParams(cmd.Parameters);
+
+                  using (var ad = new SqlDataAdapter(cmd))
+                      ad.Fill(table);
+              }
+          }
+          catch (Exception ex)
+          {
+              MessageBox.Show(ex.Message, "SQL error",
+                  MessageBoxButtons.OK, MessageBoxIcon.Error);
+          }
+          return table;
+      }
+
+      private void TeacherForm_Load(object sender, EventArgs e)
+      {
+          const string sql = @"
+              SELECT DISTINCT d.discipline_id, d.name
+              FROM Teacher_workload tw
+              JOIN Discipline d ON d.discipline_id = tw.discipline_id
+              WHERE tw.teacher_id = @tid
+              ORDER BY d.name";
+
+          var dt = ExecToTable(sql, p => p.AddWithValue("@tid", TeacherId));
+
+          cmbDisciplines.DisplayMember = "name";
+          cmbDisciplines.ValueMember = "discipline_id";
+          cmbDisciplines.DataSource = dt;
+          cmbDisciplines.SelectedIndex = -1;
+      }
+
+      private void CmbDisciplines_SelectedIndexChanged(object sender, EventArgs e)
+      {
+          cmbGroups.DataSource = null;
+
+          if (cmbDisciplines.SelectedValue == null)
+              return;
+
+          int did = (int)cmbDisciplines.SelectedValue;
+
+          const string sql = @"
+              SELECT DISTINCT g.group_id, g.code_spec
+              FROM Teacher_workload tw
+              JOIN [Group] g ON g.group_id = tw.group_id
+              WHERE tw.teacher_id = @tid AND tw.discipline_id = @did
+              ORDER BY g.code_spec";
+
+          var dt = ExecToTable(sql, p =>
+          {
+              p.AddWithValue("@tid", TeacherId);
+              p.AddWithValue("@did", did);
+          });
+
+          cmbGroups.DisplayMember = "code_spec";
+          cmbGroups.ValueMember = "group_id";
+          cmbGroups.DataSource = dt;
+          cmbGroups.SelectedIndex = -1;
+      }
+
+      private void BtnLoadStudents_Click(object sender, EventArgs e)
+      {
+          if (cmbDisciplines.SelectedValue == null)
+          {
+              MessageBox.Show("Выберите дисциплину"); return;
+          }
+          if (cmbGroups.SelectedValue == null)
+          {
+              MessageBox.Show("Выберите группу"); return;
+          }
+
+          int did = (int)cmbDisciplines.SelectedValue;
+          int gid = (int)cmbGroups.SelectedValue;
+
+          const string sql = @"
+              SELECT s.student_id,
+                     s.lastname + ' ' + s.firstname + ' ' + s.middlename AS Студент,
+                     g.GradeValue AS Оценка
+              FROM Students  s
+              LEFT JOIN Grade g
+                     ON g.student_id = s.student_id
+                    AND g.discipline_id = @did
+              WHERE s.group_id = @gid
+              ORDER BY s.lastname, s.firstname";
+
+          dgvStudents.DataSource = ExecToTable(sql, p =>
+          {
+              p.AddWithValue("@did", did);
+              p.AddWithValue("@gid", gid);
+          });
+
+          dgvStudents.Columns["student_id"].Visible = false;
+          dgvStudents.Columns["Студент"].Width = 200;
+          dgvStudents.Columns["Оценка"].Width = 60;
+          dgvStudents.ClearSelection();
+          numGrade.Value = 0;
+      }
+
+      private void DgvStudents_SelectionChanged(object sender, EventArgs e)
+      {
+          if (dgvStudents.CurrentRow == null)
+              return;
+
+          object val = dgvStudents.CurrentRow.Cells["Оценка"].Value;
+          numGrade.Value = (val == null || val == DBNull.Value) ? 0 : Convert.ToDecimal(val);
+      }
+
+      private void BtnSaveGrade_Click(object sender, EventArgs e)
+      {
+          if (dgvStudents.CurrentRow == null)
+          {
+              MessageBox.Show("Сначала выберите студента"); return;
+          }
+          if (cmbDisciplines.SelectedValue == null || cmbGroups.SelectedValue == null)
+          {
+              MessageBox.Show("Сначала выберите дисциплину и группу"); return;
+          }
+
+          int sid = (int)dgvStudents.CurrentRow.Cells["student_id"].Value;
+          int did = (int)cmbDisciplines.SelectedValue;
+          byte? gradeValue = numGrade.Value > 0 ? (byte?)numGrade.Value : null;
+
+          const string sqlExists = "SELECT 1 FROM Grade WHERE student_id=@sid AND discipline_id=@did";
+          const string sqlInsert = "INSERT INTO Grade(discipline_id,student_id,GradeValue) VALUES(@did,@sid,@gv)";
+          const string sqlUpdate = "UPDATE Grade SET GradeValue=@gv WHERE student_id=@sid AND discipline_id=@did";
+          const string sqlDelete = "DELETE FROM Grade WHERE student_id=@sid AND discipline_id=@did";
+
+          try
+          {
+              using (var conn = new SqlConnection(ConnString))
+              {
+                  conn.Open();
+
+                  bool exists;
+                  using (var cmd = new SqlCommand(sqlExists, conn))
+                  {
+                      cmd.Parameters.AddWithValue("@sid", sid);
+                      cmd.Parameters.AddWithValue("@did", did);
+                      exists = cmd.ExecuteScalar() != null;
+                  }
+
+                  if (gradeValue.HasValue)
+                  {
+                      var cmdText = exists ? sqlUpdate : sqlInsert;
+                      using (var cmd = new SqlCommand(cmdText, conn))
+                      {
+                          cmd.Parameters.AddWithValue("@sid", sid);
+                          cmd.Parameters.AddWithValue("@did", did);
+                          cmd.Parameters.AddWithValue("@gv", gradeValue.Value);
+                          cmd.ExecuteNonQuery();
+                      }
+                  }
+                  else if (exists) 
+                  {
+                      using (var cmd = new SqlCommand(sqlDelete, conn))
+                      {
+                          cmd.Parameters.AddWithValue("@sid", sid);
+                          cmd.Parameters.AddWithValue("@did", did);
+                          cmd.ExecuteNonQuery();
+                      }
+                  }
+              }
+          }
+          catch (Exception ex)
+          {
+              MessageBox.Show(ex.Message, "SQL error",
+                  MessageBoxButtons.OK, MessageBoxIcon.Error);
+              return;
+          }
+
+          BtnLoadStudents_Click(null, null);
+
+          foreach (DataGridViewRow row in dgvStudents.Rows)
+          {
+              if ((int)row.Cells["student_id"].Value == sid)
+              {
+                  row.Selected = true;
+                  dgvStudents.CurrentCell = row.Cells["Студент"];
+                  break;
+              }
+          }
+      }
+  }
+
+
+
+
+        private System.Windows.Forms.DataGridView dgvStudents;
+        private System.Windows.Forms.BindingSource demoExamDataSetBindingSource;
+        private DemoExamDataSet demoExamDataSet;
+        private System.Windows.Forms.ComboBox cmbDisciplines;
+        private System.Windows.Forms.Button btnLoadStudents;
+        private System.Windows.Forms.NumericUpDown numGrade;
+        private System.Windows.Forms.Button btnSaveGrade;
+        private System.Windows.Forms.ComboBox cmbGroups;
+        private System.Windows.Forms.Button btnViewGrades;

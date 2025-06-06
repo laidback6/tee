@@ -1,0 +1,75 @@
+  public partial class MainForm : Form
+  {
+      private readonly string _conn =
+          "Server=77.110.109.59,1433;" +
+          "Database=UniversityBD;" +
+          "User ID=sa;" +
+          "Password=#puswold123sdJwnwlke23@!3d3zz;" +
+          "Encrypt=True;TrustServerCertificate=True;";
+
+      private const string TableName = "Students";     
+      private const string KeyColumn = "student_id";   
+
+      private SqlDataAdapter _adapter;
+      private DataTable _table;
+
+      public MainForm()
+      {
+          InitializeComponent();
+          Try(LoadData, "Ошибка при загрузке данных");
+      }
+
+      private void LoadData()
+      {
+          _adapter = new SqlDataAdapter($"SELECT * FROM {TableName}", _conn);
+          new SqlCommandBuilder(_adapter);     
+
+          _table = new DataTable();
+          _adapter.Fill(_table);
+
+          if (_table.Columns.Contains(KeyColumn))
+          {
+              var idCol = _table.Columns[KeyColumn];
+              idCol.AutoIncrement = true;
+              idCol.AutoIncrementSeed = -1;
+              idCol.AutoIncrementStep = -1;
+              idCol.ReadOnly = true;
+          }
+
+          dataGridView1.DataSource = _table;
+          if (dataGridView1.Columns.Contains(KeyColumn))
+              dataGridView1.Columns[KeyColumn].ReadOnly = true;
+      }
+
+      private void btnAdd_Click(object s, EventArgs e) => _table.Rows.Add(_table.NewRow());
+
+      private void btnDelete_Click(object s, EventArgs e)
+      {
+          foreach (DataGridViewRow r in dataGridView1.SelectedRows)
+              dataGridView1.Rows.Remove(r);
+      }
+
+      private void btnSave_Click(object s, EventArgs e) =>
+          Try(() =>
+          {
+              _adapter.Update(_table);   
+              LoadData();               
+              MessageBox.Show("Сохранено");
+          }, "Не удалось сохранить изменения");
+
+      protected override void OnFormClosing(FormClosingEventArgs e)
+      {
+          Try(() => _adapter.Update(_table), "Не удалось сохранить при закрытии");
+          base.OnFormClosing(e);
+      }
+
+      private static void Try(Action action, string errMsg)
+      {
+          try { action(); }
+          catch (Exception ex)
+          {
+              MessageBox.Show($"{errMsg}:\n{ex.Message}",
+                              "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+          }
+      }
+  }
