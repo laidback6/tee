@@ -1,0 +1,32 @@
+Вывод данных в DataGridView из БД на C#
+
+1. Объявление переменной со строкой подключения к базе данных:
+string connectString = "Data Source=.\\SQLEXPRESS;Initial Catalog=LSTU"     "Integrated Security=true";
+2. Создание объекта для подключения к БД:
+SqlConnection myConnection = new SqlConnection(connectString);
+3. Соединение с БД:
+myConnection.Open();
+4. Запрос на получение данных из таблицы:
+string query = "SELECT * FROM Faculty ORDER BY fac_id"
+5. Создание объекта, выполняющего запрос к БД:
+SqlCommand command = new SqlCommand(query, myConnection);
+6. Получение объекта для чтения данных из БД, содержащих несколько строк и столбцов:
+SqlDataReader reader = command.ExecuteReader();
+7. Создание списка List для хранения полученных данных. Каждая строка будет представлена элементом списка, а столбец – элементом строкового массива string[]:
+List<string[]> data = new List<string[]>();
+8. В цикле построчно читаем данные строки (каждого её столбца), предварительно создав новый элемент списка List:
+while (reader.Read())
+{
+    data.Add(new string[3]);
+     data[data.Count - 1][0] = reader[0].ToString();
+    data[data.Count - 1][1] = reader[1].ToString();
+    data[data.Count - 1][2] = reader[2].ToString();
+}
+9. Закрываем SqlDataReader:
+reader.Close();
+10. Разрываем соединение с базой данных:
+myConnection.Close();
+11. В цикле foreach добавляем новые строки в DataGridView с помощью метода Add. Элементами строки являются столбцы, заполняемые из строкового массива, содержащегося в конкретном элементе списка List:
+foreach (string[] s in data)
+    dataGridView1.Rows.Add(s);
+

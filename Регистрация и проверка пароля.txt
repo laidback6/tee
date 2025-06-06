@@ -1,0 +1,85 @@
+public void Register()
+{
+    string login    = textBox5.Text.Trim();
+    string password = textBox4.Text;
+    string access   = textBox3.Text.Trim();
+
+    if (login.Length == 0)
+    {
+        MessageBox.Show("Введите логин.");
+        return;
+    }
+    if (password.Length < 8)
+    {
+        MessageBox.Show("Пароль должен быть как минимум 8 символов.");
+        return;
+    }
+    if (!PasswordIsValid(password))
+    {
+        MessageBox.Show("Пароль должен содержать цифры, строчные и прописные буквы.");
+        return;
+    }
+    if (access.Length == 0)
+    {
+        MessageBox.Show("Укажите уровень доступа.");
+        return;
+    }
+
+    string connectionString = 
+        "Data Source=DESKTOP-KTNDQ4L;Initial Catalog=PR3;Integrated Security=True";
+
+    const string checkUserSql = 
+        @"SELECT COUNT(1)
+          FROM dbo.Users
+          WHERE Login = @login";
+
+    using (var conn = new SqlConnection(connectionString))
+    using (var cmd  = new SqlCommand(checkUserSql, conn))
+    {
+        cmd.Parameters.AddWithValue("@login", login);
+
+        conn.Open();
+        int userExists = (int)cmd.ExecuteScalar();
+        if (userExists > 0)
+        {
+            MessageBox.Show("Пользователь с таким логином уже существует.");
+            return;
+        }
+    }
+
+    const string insertUserSql = 
+        @"INSERT INTO dbo.Users (Login, Password, Access)
+          VALUES (@login, @password, @access)";
+
+    using (var conn = new SqlConnection(connectionString))
+    using (var cmd  = new SqlCommand(insertUserSql, conn))
+    {
+        cmd.Parameters.AddWithValue("@login",    login);
+        cmd.Parameters.AddWithValue("@password", password);
+        cmd.Parameters.AddWithValue("@access",   access);
+
+        conn.Open();
+        int rowsAffected = cmd.ExecuteNonQuery();
+        if (rowsAffected == 1)
+            MessageBox.Show("Регистрация прошла успешно.");
+        else
+            MessageBox.Show("Произошла ошибка при добавлении пользователя.");
+    }
+}
+
+// Вспомогательный метод для проверки пароля
+private bool PasswordIsValid(string pwd)
+{
+    bool hasDigit    = false;
+    bool hasLower    = false;
+    bool hasUpper    = false;
+
+    foreach (char c in pwd)
+    {
+        if (char.IsDigit(c))    hasDigit = true;
+        if (char.IsLower(c))    hasLower = true;
+        if (char.IsUpper(c))    hasUpper = true;
+    }
+
+    return hasDigit && hasLower && hasUpper;
+}

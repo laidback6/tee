@@ -1,0 +1,68 @@
+private void Loginbtn_Click(object sender, EventArgs e)
+{
+    string username = usernameBox.Text.Trim();
+    string password = passwordBoz.Text.Trim();
+
+    // Проверка на пустые поля
+    if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+    {
+        MessageBox.Show("Введите логин и пароль.");
+        return;
+    }
+
+    try
+    {
+        using (SqlConnection connection = new SqlConnection(Session._connection))
+        {
+            connection.Open();
+
+            string query = @"
+                SELECT Role, PersonID 
+                FROM Users 
+                WHERE Username = @Username AND PasswordHash = @Password";
+
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@Username", username);
+                command.Parameters.AddWithValue("@Password", password); // Лучше использовать хеш
+
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        string role = reader["Role"] as string ?? "Unknown";
+                        int personId = reader["PersonID"] != DBNull.Value ? Convert.ToInt32(reader["PersonID"]) : -1;
+
+                        Session.Role = role;
+
+                        MessageBox.Show($"Успешный вход. Роль: {role}, ID: {personId}");
+
+                        this.Hide();
+                        if (role == "Student")
+                        {
+                            // StudentForm form = new StudentForm(personId);
+                            // form.Show();
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("Неверное имя пользователя или пароль.");
+                    }
+                }
+            }
+        }
+    }
+    catch (SqlException ex)
+    {
+        MessageBox.Show($"Ошибка подключения к базе данных:\n{ex.Message}");
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show($"Произошла ошибка:\n{ex.Message}");
+    }
+}
+
+            private void checkBox1_CheckedChanged(object sender, EventArgs e)
+            {
+                passwordBoz.UseSystemPasswordChar = !checkBox1.Checked;
+            }

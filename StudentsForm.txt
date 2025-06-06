@@ -1,0 +1,30 @@
+private void LoadGrades(int currentStudentId)
+{
+    // Собираем полное ФИО: если middlename = NULL, то подставляем пустую строку
+    string sql = @"
+        SELECT 
+            s.firstname 
+            + ' ' 
+            + s.lastname 
+            + ' ' 
+            + ISNULL(s.middlename, '') AS StudentName, 
+            d.name            AS DisciplineName, 
+            g.GradeValue      AS Grade
+        FROM Students AS s
+        JOIN Grade      AS g ON g.student_id    = s.student_id
+        JOIN Discipline AS d ON d.discipline_id = g.discipline_id
+        WHERE s.student_id = @CurrentStudentId
+        ORDER BY d.name;         -- необязательно, но удобно сортировать по названию дисциплины
+    ";
+
+    using (var connection = new SqlConnection(_connection))
+    using (var adapter    = new SqlDataAdapter(sql, connection))
+    {
+        adapter.SelectCommand.Parameters.AddWithValue("@CurrentStudentId", currentStudentId);
+
+        var table = new DataTable();
+        adapter.Fill(table);
+
+        gradesDataGridView.DataSource = table;
+    }
+}

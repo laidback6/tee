@@ -1,0 +1,6 @@
+private void button1_Click(object sender, EventArgs e)
+        {
+ Form ifrm = Application.OpenForms["Form1"];
+            ifrm.Show();
+            this.Close();
+        }
