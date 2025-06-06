@@ -1,0 +1,96 @@
+IF DB_ID(N'UniversityBD') IS NULL
+    CREATE DATABASE UniversityBD;
+GO
+ALTER DATABASE UniversityBD SET RECOVERY SIMPLE;
+GO
+USE UniversityBD;
+GO
+
+CREATE TABLE dbo.Discipline
+(
+    DisciplineId  INT IDENTITY(1,1) PRIMARY KEY,
+    [Name]        NVARCHAR(50)  NOT NULL,
+    NumOfHours    INT           NULL CHECK (NumOfHours > 0),
+    TypeCert      NVARCHAR(50)  NOT NULL
+);
+GO
+
+CREATE TABLE dbo.[Group]
+(
+    GroupId   INT IDENTITY(1,1) PRIMARY KEY,
+    CodeSpec  INT          NOT NULL UNIQUE,
+    Spec      NVARCHAR(50) NOT NULL
+);
+GO
+
+CREATE TABLE dbo.Student
+(
+    StudentId  INT IDENTITY(1,1) PRIMARY KEY,
+    LastName   NVARCHAR(50) NOT NULL,
+    FirstName  NVARCHAR(50) NOT NULL,
+    MiddleName NVARCHAR(50) NOT NULL,
+    GroupId    INT NOT NULL REFERENCES dbo.[Group](GroupId)
+);
+GO
+
+CREATE TABLE dbo.Teacher
+(
+    TeacherId  INT IDENTITY(1,1) PRIMARY KEY,
+    LastName   NVARCHAR(50) NOT NULL,
+    FirstName  NVARCHAR(50) NOT NULL,
+    MiddleName NVARCHAR(50) NOT NULL
+);
+GO
+
+CREATE TABLE dbo.TeacherWorkload
+(
+    WorkloadId    INT IDENTITY(1,1) PRIMARY KEY,
+    TeacherId     INT NOT NULL REFERENCES dbo.Teacher(TeacherId),
+    DisciplineId  INT NOT NULL REFERENCES dbo.Discipline(DisciplineId),
+    GroupId       INT NOT NULL REFERENCES dbo.[Group](GroupId),
+    CONSTRAINT UQ_TeacherWorkload UNIQUE (TeacherId, DisciplineId, GroupId)
+);
+GO
+
+CREATE TABLE dbo.Grade
+(
+    GradeId      INT IDENTITY(1,1) PRIMARY KEY,
+    DisciplineId INT     NOT NULL REFERENCES dbo.Discipline(DisciplineId),
+    StudentId    INT     NOT NULL REFERENCES dbo.Student(StudentId),
+    GradeValue   TINYINT NOT NULL CHECK (GradeValue BETWEEN 2 AND 5),
+    CONSTRAINT UQ_Grade UNIQUE (DisciplineId, StudentId)
+);
+GO
+
+CREATE TABLE dbo.[User]
+(
+    UserId       INT IDENTITY(1,1) PRIMARY KEY,
+    [Login]      NVARCHAR(50)  NOT NULL UNIQUE,
+    PasswordHash NVARCHAR(100) NOT NULL,
+    [Role]       NVARCHAR(20)  NOT NULL,
+    PersonId     INT NULL
+);
+GO
+
+CREATE INDEX IX_Student_Group     ON dbo.Student(GroupId);
+CREATE INDEX IX_Grade_Student     ON dbo.Grade(StudentId);
+CREATE INDEX IX_Grade_Discipline  ON dbo.Grade(DisciplineId);
+GO
+
+INSERT dbo.Discipline ([Name], NumOfHours, TypeCert) VALUES
+ (N'Программирование',180,N'зачёт'),
+ (N'Базы данных',160,N'экзамен'),
+ (N'Машинное обучение',150,N'экзамен');
+
+INSERT dbo.[Group] (CodeSpec, Spec) VALUES
+ (221,N'ПМИ-22'),
+ (222,N'ПИУ-22');
+
+INSERT dbo.Teacher (LastName,FirstName,MiddleName) VALUES
+ (N'Иванов',N'Игорь',N'Петрович'),
+ (N'Новикова',N'Ольга',N'Сергеевна');
+
+INSERT dbo.Student (LastName,FirstName,MiddleName,GroupId) VALUES
+ (N'Александров',N'Александр',N'Игоревич',1),
+ (N'Михайлова',N'Мария',N'Алексеевна',2);
+GO
