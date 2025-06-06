@@ -1,0 +1,105 @@
+## Шпаргалка WinForms + SQL Server
+
+### 1. Быстрая схема «прочитал-заполнил»
+
+```csharp
+string cs = @"Server=.\SQLEXPRESS;Database=Demo;Trusted_Connection=True;";
+
+DataTable Query(string sql, Action<SqlParameterCollection> p = null)
+{
+    using var cn  = new SqlConnection(cs);
+    using var cmd = new SqlCommand(sql, cn);
+    p?.Invoke(cmd.Parameters);
+    var dt = new DataTable();
+    new SqlDataAdapter(cmd).Fill(dt);
+    return dt;
+}
+```
+
+---
+
+### 2. **ComboBox** — выбираем из справочника
+
+```csharp
+void LoadGroups()
+{
+    cbGroup.DataSource = Query(
+        "SELECT group_id, spec FROM [Group] ORDER BY spec");
+    cbGroup.ValueMember   = "group_id";  // что попадёт в SelectedValue
+    cbGroup.DisplayMember = "spec";      // то, что увидит пользователь
+    cbGroup.SelectedIndex = -1;          // «пустой» старт
+}
+```
+
+> **Мини-лайфхаки**
+>
+> * `DropDownStyle = DropDownList` — запрет ручного ввода.
+> * Чтобы «цеплять» второй ComboBox:
+>   `cbGroup.SelectedIndexChanged += (_,__) => LoadStudents();`
+
+---
+
+### 3. **DataGridView** — вывод набора строк
+
+```csharp
+void LoadStudents(int groupId)
+{
+    dgv.AutoGenerateColumns = true;             // или false → задаёте сами
+    dgv.DataSource = Query(
+        @"SELECT student_id,
+                 lastname+' '+firstname AS Студент,
+                 birthdate AS ДР
+          FROM Students
+          WHERE group_id = @g",
+        p => p.AddWithValue("@g", groupId));
+
+    dgv.Columns["student_id"].Visible = false;  // прячем PK
+    dgv.Columns["Студент"].Width      = 180;
+
+    // приятные мелочи
+    dgv.ReadOnly = true;
+    dgv.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+    dgv.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+}
+```
+
+> **Частые ошибки**
+>
+> * Пытаться брать `SelectedValue` до того, как `DataSource` заполнен.
+> * Приводить строку-ФИО к `int`. Берите скрытую колонку с PK.
+> * Забывать `Using` для подключения – остаются висящие соединения.
+
+---
+
+### 4.  Связывание ComboBox ↔ DataGridView
+
+```csharp
+cbGroup.SelectedIndexChanged += (s, e) =>
+{
+    if (cbGroup.SelectedValue != null)
+        LoadStudents((int)cbGroup.SelectedValue);
+};
+```
+
+---
+
+### 5.  Быстрое сохранение/обновление одной ячейки
+
+```csharp
+void SaveMark(int studId, int discId, byte mark)
+{
+    const string sql = @"
+IF EXISTS (SELECT 1 FROM Grade WHERE student_id=@s AND discipline_id=@d)
+     UPDATE Grade SET GradeValue=@m WHERE student_id=@s AND discipline_id=@d;
+ELSE INSERT INTO Grade(discipline_id,student_id,GradeValue)
+     VALUES(@d,@s,@m);";
+
+    using var cn = new SqlConnection(cs);
+    using var cmd = new SqlCommand(sql, cn);
+    cmd.Parameters.AddWithValue("@s", studId);
+    cmd.Parameters.AddWithValue("@d", discId);
+    cmd.Parameters.AddWithValue("@m", mark);
+    cn.Open();
+    cmd.ExecuteNonQuery();
+}
+`
