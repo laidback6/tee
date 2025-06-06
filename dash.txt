@@ -1,0 +1,67 @@
+    public Dashboard() { InitializeComponent(); LoadGroups(); }
+
+    private DataTable Query(string sql, Action<SqlParameterCollection> add = null)
+    {
+        var dt = new DataTable();
+        using (var cn = new SqlConnection(Conn))
+        using (var cmd = new SqlCommand(sql, cn))
+        {
+            add?.Invoke(cmd.Parameters);
+            new SqlDataAdapter(cmd).Fill(dt);
+        }
+        return dt;
+    }
+
+
+    private void LoadGroups()
+    {
+        cbGroup.DataSource = Query(
+            "SELECT group_id, spec FROM [Group] ORDER BY spec");
+        cbGroup.ValueMember = "group_id";
+        cbGroup.DisplayMember = "spec";
+        cbGroup.SelectedIndexChanged += (_, __) => LoadStudents();
+        LoadStudents();            
+    }
+
+    private void LoadStudents()
+    {
+        if (cbGroup.SelectedValue == null) return;
+        int gid = (int)cbGroup.SelectedValue;
+
+        cbStudent.DataSource = Query(
+            @"SELECT student_id,
+                     lastname+' '+LEFT(firstname,1)+'.'+LEFT(middlename,1)+'.' AS fio
+              FROM Students WHERE group_id=@g ORDER BY lastname",
+            p => p.AddWithValue("@g", gid));
+
+        cbStudent.ValueMember = "student_id";
+        cbStudent.DisplayMember = "fio";
+    }
+
+    private void btnShow_Click(object sender, EventArgs e)
+    {
+        if (cbStudent.SelectedValue == null) return;
+        int sid = (int)cbStudent.SelectedValue;
+
+        var dt = Query(
+            @"SELECT d.name  AS Discipline,
+                     g.GradeValue AS Mark
+              FROM Grade g
+              JOIN Discipline d ON d.discipline_id = g.discipline_id
+              WHERE g.student_id=@s
+              ORDER BY d.name",
+            p => p.AddWithValue("@s", sid));
+
+        gridMarks.DataSource = dt;             
+
+        chartMarks.Series.Clear();
+        var ser = chartMarks.Series.Add("Оценки");
+        ser.ChartType = SeriesChartType.Column;
+        ser.XValueMember = "Discipline";
+        ser.YValueMembers = "Mark";
+        chartMarks.ChartAreas[0].AxisY.Minimum = 0;
+        chartMarks.ChartAreas[0].AxisY.Maximum = 5;
+        chartMarks.DataSource = dt;
+        chartMarks.DataBind();
+    }
+}
