@@ -1,0 +1,549 @@
+Отлично, начнём с Модуля №1: Проектирование и разработка информационной системы. Ниже приведу реализацию с использованием Windows Forms и MySQL Server.
+
+⸻
+
+🧩 Модуль №1: Реализация приложения
+
+📌 Описание базы данных (MySQL)
+
+Таблицы:
+
+-- Группы
+CREATE TABLE Groups (
+    GroupID INT PRIMARY KEY AUTO_INCREMENT,
+    GroupName VARCHAR(50) NOT NULL
+);
+
+-- Студенты
+CREATE TABLE Students (
+    StudentID INT PRIMARY KEY AUTO_INCREMENT,
+    FullName VARCHAR(100),
+    GroupID INT,
+    FOREIGN KEY (GroupID) REFERENCES Groups(GroupID)
+);
+
+-- Дисциплины
+CREATE TABLE Subjects (
+    SubjectID INT PRIMARY KEY AUTO_INCREMENT,
+    SubjectName VARCHAR(100),
+    TeacherID INT
+);
+
+-- Преподаватели
+CREATE TABLE Teachers (
+    TeacherID INT PRIMARY KEY AUTO_INCREMENT,
+    FullName VARCHAR(100)
+);
+
+-- Оценки
+CREATE TABLE Grades (
+    GradeID INT PRIMARY KEY AUTO_INCREMENT,
+    StudentID INT,
+    SubjectID INT,
+    GradeValue INT,
+    DateSet DATE,
+    IsDeleted BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (StudentID) REFERENCES Students(StudentID),
+    FOREIGN KEY (SubjectID) REFERENCES Subjects(SubjectID)
+);
+
+Пример тестовых данных:
+
+INSERT INTO Groups (GroupName) VALUES ('ПИ-301'), ('ПИ-302');
+
+INSERT INTO Students (FullName, GroupID) VALUES 
+('Иванов И.И.', 1), 
+('Петров П.П.', 1), 
+('Сидоров С.С.', 2);
+
+INSERT INTO Teachers (FullName) VALUES ('Смирнов А.А.'), ('Кузнецов Б.Б.');
+
+INSERT INTO Subjects (SubjectName, TeacherID) VALUES 
+('Математика', 1), 
+('Программирование', 2);
+
+INSERT INTO Grades (StudentID, SubjectID, GradeValue, DateSet) VALUES
+(1, 1, 4, CURDATE()),
+(1, 2, 5, CURDATE()),
+(2, 1, 3, CURDATE());
+
+
+⸻
+
+🖥️ Реализация Windows Forms (Visual Studio)
+
+Структура проекта:
+	•	Форма авторизации
+	•	Форма преподавателя
+	•	Форма студента
+	•	Классы для работы с БД (MySQLConnector.cs, Models.cs)
+
+Пример подключения к БД
+
+// MySQLConnector.cs
+using MySql.Data.MySqlClient;
+
+public static class DB
+{
+    private static string connStr = "server=localhost;user=root;password=1234;database=edu_db;";
+    public static MySqlConnection GetConnection() => new MySqlConnection(connStr);
+}
+
+Авторизация (учётная запись преподавателя или студента)
+
+// LoginForm.cs
+private void btnLogin_Click(object sender, EventArgs e)
+{
+    string login = txtLogin.Text;
+    string role = cmbRole.SelectedItem.ToString(); // "Преподаватель" или "Студент"
+
+    MySqlConnection conn = DB.GetConnection();
+    conn.Open();
+
+    string query = role == "Преподаватель"
+        ? "SELECT * FROM Teachers WHERE FullName = @login"
+        : "SELECT * FROM Students WHERE FullName = @login";
+
+    MySqlCommand cmd = new MySqlCommand(query, conn);
+    cmd.Parameters.AddWithValue("@login", login);
+
+    var reader = cmd.ExecuteReader();
+    if (reader.Read())
+    {
+        int userId = Convert.ToInt32(reader[0]);
+        this.Hide();
+
+        if (role == "Преподаватель")
+            new TeacherForm(userId).Show();
+        else
+            new StudentForm(userId).Show();
+    }
+    else
+    {
+        MessageBox.Show("Пользователь не найден.");
+    }
+
+    conn.Close();
+}
+
+Преподаватель: Просмотр и выставление оценок
+
+// TeacherForm.cs
+private void LoadSubjects()
+{
+    string query = "SELECT * FROM Subjects WHERE TeacherID = @id";
+    // заполнение ListBox/ComboBox предметами
+}
+
+private void btnSetGrade_Click(object sender, EventArgs e)
+{
+    string query = "REPLACE INTO Grades (StudentID, SubjectID, GradeValue, DateSet) VALUES (@sid, @subid, @grade, CURDATE())";
+    // вставка/обновление оценки
+}
+
+Студент: Просмотр оценок
+
+// StudentForm.cs
+private void LoadMyGrades()
+{
+    string query = @"
+        SELECT s.SubjectName, g.GradeValue, g.DateSet 
+        FROM Grades g 
+        JOIN Subjects s ON g.SubjectID = s.SubjectID
+        WHERE g.StudentID = @id AND g.IsDeleted = 0";
+    // вывод в datagrifview
+
+
+Отлично! Переходим к Модулю №2: Составление руководства пользователя.
+
+⸻
+
+📘 Руководство пользователя
+
+Информационная система автоматизации выставления оценок
+
+⸻
+
+🔷 1. Назначение подсистемы
+
+Программа предназначена для автоматизации выставления и просмотра оценок студентами и преподавателями. Система упрощает контроль успеваемости и взаимодействие между преподавателем и обучающимся.
+
+⸻
+
+🔷 2. Запуск программы
+	1.	Откройте исполняемый файл приложения (GradesApp.exe) или запустите проект из Visual Studio.
+	2.	На экране появится форма авторизации:
+
+🖼️ Скриншот 1 — Форма входа
+
+⸻
+
+🔷 3. Авторизация
+
+Вход в систему:
+	1.	Введите ФИО точно как в базе данных (например: Иванов И.И.).
+	2.	Выберите роль из списка:
+	•	Преподаватель
+	•	Студент
+	3.	Нажмите кнопку “Войти”.
+
+🖼️ Скриншот 2 — Пример входа преподавателя
+
+⸻
+
+🔷 4. Работа преподавателя
+
+4.1 Просмотр дисциплин
+
+После авторизации преподаватель видит список дисциплин, которые он ведет.
+
+🖼️ Скриншот 3 — Дисциплины преподавателя
+
+⸻
+
+4.2 Выставление/изменение оценок
+	1.	Выберите дисциплину.
+	2.	Выберите группу и студента.
+	3.	Укажите оценку (от 2 до 5).
+	4.	Нажмите “Выставить оценку”.
+	5.	Если поле с оценкой оставить пустым — оценка будет удалена (мягкое удаление).
+
+🖼️ Скриншот 4 — Окно выставления оценки
+
+⸻
+
+4.3 Просмотр оценок по студенту или по группе
+	•	Можно выбрать конкретного студента и просмотреть его оценки.
+	•	Также можно отобразить оценки всех студентов в группе.
+
+🖼️ Скриншот 5 — Просмотр оценок группы
+
+⸻
+
+🔷 5. Работа студента
+
+После входа студент сразу видит список своих оценок по всем дисциплинам.
+
+🖼️ Скриншот 6 — Окно студента с оценками
+
+⸻
+
+🔷 6. Возможности восстановления
+	•	Удалённые оценки не исчезают из базы: поле IsDeleted используется для логического удаления.
+	•	В админ-панели возможно будет реализовано восстановление (расширяемость проекта).
+
+⸻
+
+🔷 7. Структура меню и функций
+
+Элемент	Назначение
+Вход	Авторизация по ФИО и роли
+Оценки (Преподаватель)	Просмотр, выставление, удаление
+Оценки (Студент)	Просмотр своих оценок
+Выход	Закрытие текущей формы и возврат к авторизации
+
+
+⸻
+
+🔷 8. Завершение работы
+
+Для завершения работы нажмите “Выход” в любой форме.
+
+⸻
+
+📎 Примечания:
+	•	Все действия преподавателя сохраняются в базе данных.
+	•	Студент не может редактировать оценки.
+
+
+
+Отлично! Переходим к Модулю №3: Администрирование информационных ресурсов — в нём нужно:
+	1.	Добавить 10 записей в таблицы из открытых источников.
+	2.	Построить интерактивный дашборд, отображающий:
+	•	успеваемость студентов;
+	•	сравнение по группам и студентам;
+	•	фильтрацию с взаимным обновлением графиков;
+	3.	Описать техническую документацию (что и как работает).
+
+⸻
+
+🗃️ 1. Добавление 10 записей
+
+Пример: 10 студентов с ФИО, взятыми из открытых источников (случайные имена).
+
+INSERT INTO Students (FullName, GroupID) VALUES
+('Алексеев Роман', 1),
+('Новикова Анастасия', 1),
+('Попов Даниил', 1),
+('Лебедева Софья', 2),
+('Козлов Артем', 2),
+('Морозова Дарья', 2),
+('Зайцев Никита', 2),
+('Волкова Елизавета', 1),
+('Григорьев Максим', 2),
+('Семенова Виктория', 1);
+
+Также добавим дисциплины и оценки.
+
+INSERT INTO Subjects (SubjectName, TeacherID) VALUES
+('Информатика', 1),
+('Физика', 2);
+
+-- Пример оценок
+INSERT INTO Grades (StudentID, SubjectID, GradeValue, DateSet)
+VALUES (1, 3, 4, CURDATE()), (2, 3, 5, CURDATE()), (3, 4, 3, CURDATE());
+
+
+⸻
+
+📊 2. Построение интерактивного дашборда
+
+Для Windows Forms мы реализуем отчёт с графиками, используя Chart-контрол.
+
+🔧 Необходимые компоненты:
+	•	ComboBox — выбор группы
+	•	ComboBox — выбор студента
+	•	Chart — отображение оценок
+	•	DataGridView — таблица с деталями
+
+📌 Логика взаимодействия:
+	•	При выборе группы — загружаются все её студенты.
+	•	При выборе студента — обновляется график успеваемости.
+	•	Если студент не выбран — отображается средняя успеваемость по группе.
+
+⸻
+
+💻 Код: Построение графика
+
+private void LoadStudentPerformance(int studentId)
+{
+    chart1.Series.Clear();
+    Series s = new Series("Оценки");
+    s.ChartType = SeriesChartType.Column;
+
+    using (var conn = DB.GetConnection())
+    {
+        conn.Open();
+        string query = @"
+            SELECT s.SubjectName, g.GradeValue
+            FROM Grades g
+            JOIN Subjects s ON g.SubjectID = s.SubjectID
+            WHERE g.StudentID = @id AND g.IsDeleted = 0";
+
+        MySqlCommand cmd = new MySqlCommand(query, conn);
+        cmd.Parameters.AddWithValue("@id", studentId);
+        var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            s.Points.AddXY(reader.GetString(0), reader.GetInt32(1));
+        }
+    }
+
+    chart1.Series.Add(s);
+}
+
+
+⸻
+
+🧾 3. Техническая документация
+
+Назначение:
+
+Дашборд предназначен для анализа успеваемости студентов и наглядного представления оценок.
+
+Описание компонентов:
+
+Компонент	Назначение
+ComboBoxGroup	Список групп
+ComboBoxStudent	Студенты выбранной группы
+Chart	График оценок
+DataGridView	Таблица с деталями
+
+Последовательность действий:
+	1.	Пользователь выбирает группу из ComboBoxGroup.
+	2.	Загружается список студентов в ComboBoxStudent.
+	3.	При выборе студента вызывается LoadStudentPerformance(studentId):
+	•	данные извлекаются из БД;
+	•	строится график;
+	•	отображаются оценки по предметам.
+	4.	Таблица DataGridView заполняется теми же данными.
+
+Пример визуализации:
+
+🖼️ График — Оценки студента “Алексеев Роман”
+🖼️ DataGridView — таблица с предметами и оценками
+
+
+Ниже — полная реализация формы дашборда в Windows Forms (C#) с подключением к MySQL Server. Форма строит график успеваемости студентов и отображает оценки в таблице. Предполагается, что вы подключили System.Windows.Forms.DataVisualization.Charting.
+
+⸻
+
+🗂️ DashboardForm.cs (форма дашборда)
+
+using System;
+using System.Data;
+using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
+using MySql.Data.MySqlClient;
+
+namespace GradeSystem
+{
+    public partial class DashboardForm : Form
+    {
+        public DashboardForm()
+        {
+            InitializeComponent();
+            LoadGroups();
+        }
+
+        private void LoadGroups()
+        {
+            using (var conn = DB.GetConnection())
+            {
+                conn.Open();
+                string query = "SELECT GroupID, GroupName FROM Groups";
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+                MySqlDataReader reader = cmd.ExecuteReader();
+
+                comboBoxGroup.DisplayMember = "GroupName";
+                comboBoxGroup.ValueMember = "GroupID";
+
+                DataTable dt = new DataTable();
+                dt.Load(reader);
+                comboBoxGroup.DataSource = dt;
+            }
+        }
+
+        private void comboBoxGroup_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            int groupId = Convert.ToInt32(comboBoxGroup.SelectedValue);
+            LoadStudents(groupId);
+        }
+
+        private void LoadStudents(int groupId)
+        {
+            using (var conn = DB.GetConnection())
+            {
+                conn.Open();
+                string query = "SELECT StudentID, FullName FROM Students WHERE GroupID = @groupId";
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@groupId", groupId);
+                MySqlDataReader reader = cmd.ExecuteReader();
+
+                comboBoxStudent.DisplayMember = "FullName";
+                comboBoxStudent.ValueMember = "StudentID";
+
+                DataTable dt = new DataTable();
+                dt.Load(reader);
+                comboBoxStudent.DataSource = dt;
+            }
+
+            LoadGroupAverageChart(groupId);
+        }
+
+        private void comboBoxStudent_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (comboBoxStudent.SelectedValue is int studentId)
+            {
+                LoadStudentGrades(studentId);
+                LoadStudentChart(studentId);
+            }
+        }
+
+        private void LoadStudentGrades(int studentId)
+        {
+            using (var conn = DB.GetConnection())
+            {
+                conn.Open();
+                string query = @"
+                    SELECT s.SubjectName, g.GradeValue, g.DateSet 
+                    FROM Grades g
+                    JOIN Subjects s ON g.SubjectID = s.SubjectID
+                    WHERE g.StudentID = @id AND g.IsDeleted = 0";
+
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@id", studentId);
+                MySqlDataAdapter adapter = new MySqlDataAdapter(cmd);
+
+                DataTable dt = new DataTable();
+                adapter.Fill(dt);
+                dataGridViewGrades.DataSource = dt;
+            }
+        }
+
+        private void LoadStudentChart(int studentId)
+        {
+            chart1.Series.Clear();
+            Series series = new Series("Оценки");
+            series.ChartType = SeriesChartType.Column;
+
+            using (var conn = DB.GetConnection())
+            {
+                conn.Open();
+                string query = @"
+                    SELECT s.SubjectName, g.GradeValue
+                    FROM Grades g
+                    JOIN Subjects s ON g.SubjectID = s.SubjectID
+                    WHERE g.StudentID = @id AND g.IsDeleted = 0";
+
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@id", studentId);
+                MySqlDataReader reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    string subject = reader.GetString(0);
+                    int grade = reader.GetInt32(1);
+                    series.Points.AddXY(subject, grade);
+                }
+            }
+
+            chart1.Series.Add(series);
+        }
+
+        private void LoadGroupAverageChart(int groupId)
+        {
+            chart1.Series.Clear();
+            Series series = new Series("Средний балл по студентам");
+            series.ChartType = SeriesChartType.Column;
+
+            using (var conn = DB.GetConnection())
+            {
+                conn.Open();
+                string query = @"
+                    SELECT st.FullName, ROUND(AVG(g.GradeValue), 2) AS AvgGrade
+                    FROM Grades g
+                    JOIN Students st ON g.StudentID = st.StudentID
+                    WHERE st.GroupID = @gid AND g.IsDeleted = 0
+                    GROUP BY st.StudentID";
+
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@gid", groupId);
+                MySqlDataReader reader = cmd.ExecuteReader();
+
+                while (reader.Read())
+                {
+                    string student = reader.GetString(0);
+                    double avgGrade = reader.GetDouble(1);
+                    series.Points.AddXY(student, avgGrade);
+                }
+            }
+
+            chart1.Series.Add(series);
+        }
+    }
+}
+
+
+⸻
+
+🧱 Компоненты на форме (через дизайнер)
+
+Добавьте на форму следующие элементы и задайте им имена:
+
+Элемент	Имя	Назначение
+ComboBox	comboBoxGroup	Выбор группы
+ComboBox	comboBoxStudent	Выбор студента
+Chart	chart1	График оценок
+DataGridView	dataGridViewGrades	Таблица с оценками
+
