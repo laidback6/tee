@@ -1,0 +1,233 @@
+На основе изученных материалов, вот что обязательно стоит включить в шпору для успешной сдачи демонстрационного экзамена по теме:
+
+### 🔹 Вывод данных в **ComboBox**
+
+```csharp
+// Подключение к БД и заполнение ComboBox
+string connStr = "строка подключения";
+string sql = "SELECT id, name FROM TableName";
+
+using(SqlConnection conn = new SqlConnection(connStr))
+{
+    SqlDataAdapter adapter = new SqlDataAdapter(sql, conn);
+    DataTable dt = new DataTable();
+    adapter.Fill(dt);
+
+    comboBox1.DataSource = dt;
+    comboBox1.DisplayMember = "name";   // Поле для отображения
+    comboBox1.ValueMember = "id";       // Поле для внутреннего значения
+}
+```
+
+### 🔹 Вывод данных в **DataGridView**
+
+```csharp
+// Подключение к БД и заполнение DataGridView
+string connStr = "строка подключения";
+string sql = "SELECT * FROM TableName";
+
+using(SqlConnection conn = new SqlConnection(connStr))
+{
+    SqlDataAdapter adapter = new SqlDataAdapter(sql, conn);
+    DataTable dt = new DataTable();
+    adapter.Fill(dt);
+
+    dataGridView1.DataSource = dt;
+}
+```
+
+### 🔹 Простая универсальная функция для SELECT-запросов (полезный шаблон)
+
+```csharp
+private DataTable ExecuteQuery(string sql, Action<SqlParameterCollection> addParams = null)
+{
+    DataTable dt = new DataTable();
+    try
+    {
+        using(SqlConnection conn = new SqlConnection("строка подключения"))
+        using(SqlCommand cmd = new SqlCommand(sql, conn))
+        {
+            addParams?.Invoke(cmd.Parameters);
+            new SqlDataAdapter(cmd).Fill(dt);
+        }
+    }
+    catch(Exception ex)
+    {
+        MessageBox.Show(ex.Message, "Ошибка SQL");
+    }
+    return dt;
+}
+```
+
+Использование:
+
+```csharp
+var data = ExecuteQuery("SELECT * FROM Table");
+dataGridView1.DataSource = data;
+```
+
+### 🔹 Как вставлять записи (INSERT)
+
+```csharp
+string sql = "INSERT INTO TableName (col1, col2) VALUES (@val1, @val2)";
+using(SqlConnection conn = new SqlConnection(connStr))
+using(SqlCommand cmd = new SqlCommand(sql, conn))
+{
+    cmd.Parameters.AddWithValue("@val1", value1);
+    cmd.Parameters.AddWithValue("@val2", value2);
+    conn.Open();
+    cmd.ExecuteNonQuery();
+}
+```
+
+### 🔹 Как обновлять записи (UPDATE)
+
+```csharp
+string sql = "UPDATE TableName SET col1 = @val WHERE id = @id";
+using(SqlConnection conn = new SqlConnection(connStr))
+using(SqlCommand cmd = new SqlCommand(sql, conn))
+{
+    cmd.Parameters.AddWithValue("@val", newValue);
+    cmd.Parameters.AddWithValue("@id", recordId);
+    conn.Open();
+    cmd.ExecuteNonQuery();
+}
+```
+
+### 🔹 Как удалять записи (DELETE)
+
+```csharp
+string sql = "DELETE FROM TableName WHERE id = @id";
+using(SqlConnection conn = new SqlConnection(connStr))
+using(SqlCommand cmd = new SqlCommand(sql, conn))
+{
+    cmd.Parameters.AddWithValue("@id", recordId);
+    conn.Open();
+    cmd.ExecuteNonQuery();
+}
+```
+
+Ультимативная шпаргалка по **DataGridView** и **ComboBox** с простым выводом данных из БД на **C# WinForms**.
+
+---
+
+## 🟢 Предварительная настройка
+
+Добавь вверху файла:
+
+```csharp
+using System.Data;
+using System.Data.SqlClient;
+```
+
+Создай удобный метод:
+
+```csharp
+private DataTable GetDataTable(string query, params SqlParameter[] parameters)
+{	
+    DataTable dt = new DataTable();
+    using (SqlConnection conn = new SqlConnection("ТВОЯ СТРОКА ПОДКЛЮЧЕНИЯ"))
+    using (SqlCommand cmd = new SqlCommand(query, conn))
+    {
+        if (parameters != null)
+            cmd.Parameters.AddRange(parameters);
+        using (SqlDataAdapter adapter = new SqlDataAdapter(cmd))
+            adapter.Fill(dt);
+    }
+    return dt;
+}
+```
+
+---
+
+## 🟡 Заполнение ComboBox из БД
+
+Самый удобный и чистый способ:
+
+```csharp
+private void FillComboBox(ComboBox combo, string query, string displayMember, string valueMember)
+{
+    DataTable dt = GetDataTable(query);
+    combo.DataSource = dt;
+    combo.DisplayMember = displayMember;
+    combo.ValueMember = valueMember;
+    combo.SelectedIndex = -1; // чтобы был пустой комбобокс по умолчанию
+}
+```
+
+**Пример вызова:**
+
+```csharp
+FillComboBox(comboBoxDisciplines, "SELECT discipline_id, name FROM Discipline", "name", "discipline_id");
+```
+
+Теперь выбранное значение получаем так:
+
+```csharp
+int selectedDisciplineId = (int)(comboBoxDisciplines.SelectedValue ?? 0);
+```
+
+---
+
+## 🔵 Вывод данных в DataGridView
+
+**Простой и надёжный метод:**
+
+```csharp
+private void LoadGrid(DataGridView grid, string query, params SqlParameter[] parameters)
+{
+    DataTable dt = GetDataTable(query, parameters);
+    grid.DataSource = dt;
+    grid.ReadOnly = true;
+    grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+    grid.AllowUserToAddRows = false;
+    grid.AllowUserToDeleteRows = false;
+    grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+}
+```
+
+**Пример вызова:**
+
+```csharp
+string sql = @"
+    SELECT s.student_id, s.lastname + ' ' + s.firstname AS ФИО, g.GradeValue AS Оценка
+    FROM Students s
+    LEFT JOIN Grade g ON s.student_id = g.student_id AND g.discipline_id = @disciplineId
+    WHERE s.group_id = @groupId";
+
+LoadGrid(dataGridViewStudents, sql,
+    new SqlParameter("@disciplineId", selectedDisciplineId),
+    new SqlParameter("@groupId", selectedGroupId));
+```
+
+---
+
+## 🟣 Рекомендации (важно на экзамене):
+
+* Всегда проверяй `SelectedValue` на null перед преобразованием.
+
+```csharp
+if (comboBoxDisciplines.SelectedValue != null)
+{
+    int id = (int)comboBoxDisciplines.SelectedValue;
+}
+```
+
+* Используй проверку текущей строки в `DataGridView`:
+
+```csharp
+if (dataGridViewStudents.CurrentRow != null)
+{
+    int studentId = (int)dataGridViewStudents.CurrentRow.Cells["student_id"].Value;
+}
+```
+
+* Проверяй типы данных в базе и приводи их к нужным в коде явно:
+
+```csharp
+Convert.ToInt32(row["column_name"]);
+Convert.ToString(row["column_name"]);
+```
+
+---
+

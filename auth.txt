@@ -1,0 +1,50 @@
+sing (SqlConnection connection = new SqlConnection(_connString))
+            {
+                connection.Open();
+                SqlCommand command = new SqlCommand("SELECT Role, PersonID FROM Users WHERE username=@username AND PasswordHash=@password", connection);
+                command.Parameters.AddWithValue("username", userBox.Text.ToLower());
+                command.Parameters.AddWithValue("password",PasswdBox.Text);
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    if (!reader.Read())
+                    {
+                        MessageBox.Show("Неверный логин или пароль");
+                        return;
+                    }
+                    Session.Role = reader.GetString(reader.GetOrdinal("Role"));
+                    Session.UserId = reader.GetInt32(reader.GetOrdinal("PersonID"));
+                }
+
+
+
+private void btnLogin_Click(object sender, EventArgs e)
+{
+    string username = txtUser.Text.Trim();
+    string password = txtPass.Text.Trim();
+
+    string sql = "SELECT Username, Role FROM Users WHERE Username=@u AND PasswordHash=@p";
+
+    using(SqlConnection conn = new SqlConnection(connStr))
+    using(SqlCommand cmd = new SqlCommand(sql, conn))
+    {
+        cmd.Parameters.AddWithValue("@u", username);
+        cmd.Parameters.AddWithValue("@p", password);
+
+        conn.Open();
+
+        using(SqlDataReader reader = cmd.ExecuteReader())
+        {
+            if(reader.Read()) // Если запись есть
+            {
+                string role = reader["Role"].ToString();
+                string user = reader["Username"].ToString();
+
+                MessageBox.Show($"Вход успешен!\nПользователь: {user}\nРоль: {role}");
+            }
+            else
+            {
+                MessageBox.Show("Ошибка авторизации!");
+            }
+        }
+    }
+}

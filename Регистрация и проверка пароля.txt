@@ -39,7 +39,7 @@ public void Register()
         cmd.Parameters.AddWithValue("@login", login);
 
         conn.Open();
-        int userExists = (int)cmd.ExecuteScalar();
+        int userExists = (int)cmd.	();
         if (userExists > 0)
         {
             MessageBox.Show("Пользователь с таким логином уже существует.");
