@@ -1,0 +1,58 @@
+Вот самый простой и надёжный способ заполнения ComboBox из базы данных:
+
+✅ Без дополнительных методов прямо в обработчике событий или при загрузке формы:
+
+string connStr = "твоя строка подключения";
+string sql = "SELECT discipline_id, name FROM Discipline";
+
+using (SqlConnection conn = new SqlConnection(connStr))
+using (SqlDataAdapter adapter = new SqlDataAdapter(sql, conn))
+{
+    DataTable dt = new DataTable();
+    adapter.Fill(dt);
+
+    comboBox1.DataSource = dt;
+    comboBox1.DisplayMember = "name";          // Что будет показываться пользователю
+    comboBox1.ValueMember = "discipline_id";   // Какое значение будет при выборе
+}
+
+
+---
+
+🚩 С параметром, если нужно:
+
+string connStr = "твоя строка подключения";
+string sql = "SELECT group_id, spec FROM [Group] WHERE code_spec = @code_spec";
+
+using (SqlConnection conn = new SqlConnection(connStr))
+using (SqlDataAdapter adapter = new SqlDataAdapter(sql, conn))
+{
+    adapter.SelectCommand.Parameters.AddWithValue("@code_spec", 101); // Здесь твой параметр
+
+    DataTable dt = new DataTable();
+    adapter.Fill(dt);
+
+    comboBox1.DataSource = dt;
+    comboBox1.DisplayMember = "spec";      
+    comboBox1.ValueMember = "group_id";    
+}
+
+
+---
+
+🎯 Как потом получить выбранное значение?
+
+int selectedId = (int)comboBox1.SelectedValue;
+string selectedText = comboBox1.Text;
+
+
+---
+
+ Кратко зачем так:
+
+DataSource – хранит таблицу, откуда берём данные.
+
+DisplayMember – что показываем пользователю.
+
+ValueMember – что получаем программно для дальнейшей работы.
+
